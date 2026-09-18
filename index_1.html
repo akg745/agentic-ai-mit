@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horizontal Architecture — Theory &amp; Layer Sort</title>
+<style>
+  :root{
+    --navy:#1f2a5c; --navy-2:#2b3670; --slate:#4a5680;
+    --orange:#f0a63a; --orange-ink:#5a3a00;
+    --blue-1:#c9dbf5; --blue-2:#7fb1dd; --blue-3:#5a9bd0;
+    --bg:#f6f7fb; --card:#ffffff; --ink:#1c2233; --muted:#5b6478; --line:#dfe3ee;
+    --ok:#1e8e5a; --ok-bg:#e6f6ee; --bad:#c43d3d; --bad-bg:#fbe9e9;
+    --radius:12px; --shadow:0 1px 2px rgba(20,30,60,.06),0 4px 14px rgba(20,30,60,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  a{color:var(--navy)}
+  header{background:var(--navy);color:#fff;padding:28px 16px 0}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+  header h1{margin:0 0 4px;font-size:clamp(1.3rem,2.6vw,1.9rem);line-height:1.2}
+  header p.sub{margin:0 0 20px;opacity:.85;font-size:.95rem}
+  nav.tabs{display:flex;gap:6px;flex-wrap:wrap}
+  nav.tabs button{appearance:none;border:0;background:rgba(255,255,255,.12);color:#fff;padding:12px 18px;border-radius:10px 10px 0 0;font-size:.95rem;font-weight:600;cursor:pointer}
+  nav.tabs button[aria-selected="true"]{background:var(--bg);color:var(--navy)}
+  nav.tabs button:focus-visible{outline:3px solid var(--orange);outline-offset:-3px}
+  main{padding:28px 0 60px}
+  section[role="tabpanel"][hidden]{display:none}
+  h2{color:var(--navy);font-size:1.45rem;margin:32px 0 10px}
+  h2:first-child{margin-top:0}
+  h3{color:var(--navy);font-size:1.1rem;margin:22px 0 8px}
+  p{margin:0 0 14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 22px;margin:0 0 18px}
+  .callout{border-left:5px solid var(--orange);background:#fff8ec;padding:14px 18px;border-radius:8px;margin:14px 0}
+  .note{color:var(--muted);font-size:.92rem;font-style:italic}
+  .pill{display:inline-block;font-size:.78rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:var(--blue-1);color:var(--navy)}
+
+  /* Vertical diagram */
+  .vert{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:12px 0 6px}
+  .vert .col{display:flex;flex-direction:column;gap:8px}
+  .vert .box{border-radius:8px;padding:10px 12px;text-align:center;font-size:.86rem;line-height:1.35}
+  .vert .box b{display:block;font-size:.92rem;margin-bottom:2px}
+  .vert .div{background:var(--navy);color:#fff;font-weight:700;font-size:1rem;padding:12px}
+  .vert .ui{background:var(--blue-1);color:var(--navy)}
+  .vert .int{background:var(--orange);color:var(--orange-ink)}
+  .vert .md{background:var(--blue-2);color:var(--navy)}
+  .vert .vs{background:var(--slate);color:#fff}
+  .vert .inf{background:var(--navy);color:#fff;font-weight:700}
+  .vert-warn{border:2px solid var(--bad);background:var(--bad-bg);border-radius:10px;padding:12px 16px;text-align:center;font-size:.93rem;margin-top:14px}
+  .vert-warn b{display:block;color:var(--bad);margin-bottom:4px}
+  @media (max-width:700px){.vert{grid-template-columns:1fr}}
+
+  /* Horizontal diagram (SVG) */
+  .hsvg{width:100%;height:auto;display:block;margin:10px auto 4px}
+  .hsvg text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+
+  /* Layer reference */
+  .layers{display:grid;gap:12px}
+  .layer{display:grid;grid-template-columns:200px 1fr;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  .layer .name{padding:16px 14px;font-weight:700;color:#fff;display:block;line-height:1.3}
+  .layer .name small{display:block;font-size:.82rem;opacity:.9}
+  .layer .body{padding:14px 16px;display:grid;gap:8px;font-size:.94rem}
+  .layer .body b{color:var(--navy)}
+  @media (max-width:640px){.layer{grid-template-columns:1fr}}
+
+  /* Exercise */
+  .ex-top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .ex-top .status{font-weight:600;color:var(--navy)}
+  .btn{appearance:none;border:0;border-radius:9px;padding:10px 16px;font-weight:700;font-size:.95rem;cursor:pointer}
+  .btn.primary{background:var(--navy);color:#fff}
+  .btn.ghost{background:#fff;border:1.5px solid var(--navy);color:var(--navy)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
+  .btns{display:flex;gap:8px;flex-wrap:wrap}
+
+  .ex-grid{display:grid;grid-template-columns:minmax(260px,1fr) 2fr;gap:18px;align-items:start}
+  @media (max-width:820px){.ex-grid{grid-template-columns:1fr}.pool{position:static}}
+  .pool{position:sticky;top:12px}
+  .pool h3{margin-top:0}
+  .pool .items{display:flex;flex-direction:column;gap:8px;min-height:60px}
+  .empty{color:var(--muted);font-size:.9rem;font-style:italic;padding:8px 4px}
+
+  .item{background:#fff;border:1.5px solid var(--line);border-left:5px solid var(--orange);border-radius:8px;padding:10px 12px;font-size:.93rem;cursor:grab;user-select:none;box-shadow:var(--shadow);transition:transform .08s,box-shadow .12s}
+  .item:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(20,30,60,.12)}
+  .item:active{cursor:grabbing}
+  .item.dragging{opacity:.45}
+  .item.selected{outline:3px solid var(--orange);outline-offset:1px}
+  .item:focus-visible{outline:3px solid var(--navy);outline-offset:1px}
+  .item.correct{border-left-color:var(--ok);background:var(--ok-bg)}
+  .item.wrong{border-left-color:var(--bad);background:var(--bad-bg)}
+  .item .why{display:none;margin-top:6px;font-size:.85rem;color:var(--muted)}
+  .item.correct .why,.item.wrong .why{display:block}
+  .item .why b{color:var(--ink)}
+
+  .zones{display:grid;gap:10px}
+  .zone{display:grid;grid-template-columns:190px 1fr;border:1.5px dashed var(--line);border-radius:10px;overflow:hidden;background:#fff;min-height:64px;transition:border-color .12s,background .12s}
+  .zone.over{border-color:var(--orange);background:#fff8ec}
+  .zone.target-able{border-style:solid;border-color:var(--blue-2)}
+  .zone .zname{padding:12px 12px;color:#fff;font-weight:700;line-height:1.25;display:flex;flex-direction:column;justify-content:center;gap:3px;font-size:.95rem}
+  .zone .zname small{font-weight:500;opacity:.85;font-size:.78rem}
+  .zone .drop{padding:8px;display:flex;flex-direction:column;gap:6px;min-height:64px}
+  .zone .drop .item{margin:0}
+  @media (max-width:640px){.zone{grid-template-columns:1fr}.zone .zname{padding:10px 12px}}
+
+  .result{margin-top:16px;padding:14px 18px;border-radius:10px;font-weight:600;display:none}
+  .result.show{display:block}
+  .result.good{background:var(--ok-bg);color:var(--ok)}
+  .result.partial{background:#fff4de;color:#7a4b00}
+
+  /* Zone colours */
+  .c-ux{background:#6f8fcf}.c-ao{background:var(--orange);color:var(--orange-ink)!important}.c-cs{background:var(--blue-3)}
+  .c-mp{background:#4b8fc2}.c-dp{background:#4b8fc2}.c-inf{background:var(--navy)}.c-sor{background:var(--slate)}.c-xc{background:#8a6b1f}
+  .c-ao small{color:var(--orange-ink)}
+  footer{color:var(--muted);font-size:.85rem;text-align:center;padding:20px 16px 40px}
+  .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>Rise of the Horizontal Architecture in the Agentic Era</h1>
+    <p class="sub">A layer-by-layer guide to the technical architecture behind replatforming — pre-class reading and layer sort exercise</p>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" id="tab-theory" aria-selected="true" aria-controls="panel-theory">1 · Introduction</button>
+      <button role="tab" id="tab-exercise" aria-selected="false" aria-controls="panel-exercise" tabindex="-1">2 · Exercise: Layer sort</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- ============================ THEORY ============================ -->
+<section role="tabpanel" id="panel-theory" aria-labelledby="tab-theory">
+
+  <div class="card">
+    <h2>Introduction</h2>
+    <p>Organizations are shifting from <b>vertical ownership</b>, where each business division builds and owns its own closed technology stack, to a <b>horizontal architecture</b>, where a shared set of layers sits underneath every division and is accessible to any application, human, or AI agent that needs it. <b>Replatforming</b> is the process of moving a legacy system from the old vertical world to the new horizontal one.</p>
+
+    <h3>Why replatform?</h3>
+    <p>Vertical architecture is not an entirely wrong choice, it is just expensive to keep and harder to drive ROI from in an agentic world. When each division builds its own closed stack, its own interface, its own integration logic and its own systems and source of data, that duplication stays invisible as long as nothing needs to cross divisional lines. However, this issue stops being invisible the moment an AI agent has to reason across more than one division's data or logic in a single task, or two divisions independently build the same integration against the same vendor system.</p>
+    <p>Replatforming does not throw away what each division already has; it takes the pieces that keep getting rebuilt behind every division's closed stack like orchestration logic, capability APIs, model access, data access and rebuilds each one once as a shared layer that any division or agent can call, instead of many times behind many closed doors. This enhanced accessibility makes agentic tools more efficient and improves their ROI and effectiveness across the organization.</p>
+    <div class="callout">
+      <b>A concrete version of this in pharma.</b> Before replatforming, a Commercial team might maintain its own custom integration to pull product and safety data for field sales dashboards (e.g., knowing a product's current safety profile before a rep discusses it), while Regulatory Affairs maintains an entirely separate, custom-built pipeline to pull much of the same underlying data for tracking drug approval submissions to regulatory authorities. Both integrations talk to overlapping databases and systems but neither can be reused by the other, because each was built as part of a closed, division-specific stack rather than as a shared layer. That is what a vertical architecture looks like in practice, and it is exactly the duplication that replatforming helps to remove.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Vertical architecture: three closed, division-specific stacks</h2>
+    <p class="note">Each division rebuilds the same kind of stack on its own, top to bottom, with nothing shared between columns.</p>
+    <div class="vert">
+      <div class="col">
+        <div class="box div">Commercial</div>
+        <div class="box ui"><b>User Interface</b>Field-sales dashboard built for Commercial only</div>
+        <div class="box int"><b>Integration Logic</b>Custom pipeline pulling product and safety data for reps; no other division can call it</div>
+        <div class="box md"><b>Model &amp; Data Access</b>Own copy of product/safety data, refreshed on its own schedule</div>
+        <div class="box vs"><b>Vendor Systems</b>CRM + safety database</div>
+        <div class="box inf">Infrastructure</div>
+      </div>
+      <div class="col">
+        <div class="box div">Regulatory Affairs</div>
+        <div class="box ui"><b>User Interface</b>Submission-tracking console built for Regulatory only</div>
+        <div class="box int"><b>Integration Logic</b>Separate, custom-built pipeline pulling much of the same underlying data, rebuilt from scratch</div>
+        <div class="box md"><b>Model &amp; Data Access</b>Own copy of product/safety data, cannot be reused by Commercial</div>
+        <div class="box vs"><b>Vendor Systems</b>Submission + safety database</div>
+        <div class="box inf">Infrastructure</div>
+      </div>
+      <div class="col">
+        <div class="box div">Manufacturing</div>
+        <div class="box ui"><b>User Interface</b>Quality-tracking dashboard built for Manufacturing only</div>
+        <div class="box int"><b>Integration Logic</b>Own pipeline for supplier and batch-quality records, built and maintained independently</div>
+        <div class="box md"><b>Model &amp; Data Access</b>Own copy of supplier and quality data, siloed from the rest</div>
+        <div class="box vs"><b>Vendor Systems</b>Supplier + quality database</div>
+        <div class="box inf">Infrastructure</div>
+      </div>
+    </div>
+    <div class="vert-warn">
+      <b>Same underlying vendor data, pulled three separate times</b>
+      Commercial and Regulatory Affairs both need product/safety data; Manufacturing needs supplier data that overlaps with both. Each division re-integrates it independently because nothing beneath the interface is shared.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Horizontal, AI-native architecture</h2>
+    <p class="note">Each arrow points from a layer to the layer or system it calls or relies on.</p>
+
+    <svg class="hsvg" viewBox="0 0 1000 690" role="img" aria-labelledby="hsvg-title hsvg-desc">
+      <title id="hsvg-title">Horizontal AI-native architecture</title>
+      <desc id="hsvg-desc">A shared stack of six layers. User Experience calls Agent Orchestration, which calls Capability Services. Capability Services calls Data Plane and Model Plane, which both sit on Infrastructure. Capability Services wraps and ingests from Systems of Record, which sit outside the shared stack. Security, Identity and Governance cuts through every layer.</desc>
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#1f2a5c"/>
+        </marker>
+      </defs>
+
+      <!-- governance band -->
+      <rect x="30" y="20" width="700" height="650" rx="14" fill="none" stroke="#f0a63a" stroke-width="2.5" stroke-dasharray="8 6"/>
+      <text x="380" y="52" text-anchor="middle" font-size="15" font-weight="700" fill="#1f2a5c" letter-spacing=".5">SECURITY, IDENTITY &amp; GOVERNANCE — CUTS THROUGH EVERY LAYER BELOW</text>
+      <text x="380" y="72" text-anchor="middle" font-size="12" font-style="italic" fill="#4a5680">access control, safety and quality validation, data residency, model risk: not a layer, a constraint on all of them</text>
+
+      <!-- User Experience -->
+      <rect x="70" y="95" width="620" height="82" rx="10" fill="#c9dbf5"/>
+      <text x="380" y="127" text-anchor="middle" font-size="19" font-weight="700" fill="#1f2a5c">User Experience</text>
+      <text x="380" y="148" text-anchor="middle" font-size="12.5" fill="#2b3670">Conversational and workflow interfaces.</text>
+      <text x="380" y="165" text-anchor="middle" font-size="12.5" fill="#2b3670">PharmaCo's internal assistant, Microsoft Copilot</text>
+      <line x1="380" y1="177" x2="380" y2="200" stroke="#1f2a5c" stroke-width="2.5" marker-end="url(#arr)"/>
+
+      <!-- Agent Orchestration -->
+      <rect x="70" y="202" width="620" height="92" rx="10" fill="#f0a63a"/>
+      <text x="380" y="236" text-anchor="middle" font-size="19" font-weight="700" fill="#1f2a5c">Agent Orchestration</text>
+      <text x="380" y="257" text-anchor="middle" font-size="12.5" fill="#1f2a5c">Plans a task and calls what it needs, Capability Services</text>
+      <text x="380" y="274" text-anchor="middle" font-size="12.5" fill="#1f2a5c">for actions and the Model Plane for reasoning, in the same task</text>
+      <line x1="300" y1="294" x2="230" y2="326" stroke="#1f2a5c" stroke-width="2.5" marker-end="url(#arr)"/>
+      <line x1="460" y1="294" x2="530" y2="326" stroke="#1f2a5c" stroke-width="2.5" marker-end="url(#arr)"/>
+
+      <!-- Capability Services -->
+      <rect x="70" y="328" width="620" height="90" rx="10" fill="#7fb1dd"/>
+      <text x="380" y="361" text-anchor="middle" font-size="19" font-weight="700" fill="#ffffff">Capability Services</text>
+      <text x="380" y="382" text-anchor="middle" font-size="12.5" fill="#1f2a5c">Thin, standardized APIs exposing business logic to any caller.</text>
+      <text x="380" y="399" text-anchor="middle" font-size="12.5" fill="#1f2a5c">The actual "headless" layer this case is about</text>
+      <line x1="230" y1="418" x2="200" y2="452" stroke="#1f2a5c" stroke-width="2.5" marker-end="url(#arr)"/>
+      <line x1="530" y1="418" x2="560" y2="452" stroke="#1f2a5c" stroke-width="2.5" marker-end="url(#arr)"/>
+
+      <!-- Data Plane -->
+      <rect x="70" y="455" width="295" height="105" rx="10" fill="#5a9bd0"/>
+      <text x="217" y="490" text-anchor="middle" font-size="18" font-weight="700" fill="#ffffff">Data Plane</text>
+      <text x="217" y="513" text-anchor="middle" font-size="12.5" fill="#ffffff">Unified, governed data access</text>
+      <text x="217" y="530" text-anchor="middle" font-size="12.5" fill="#ffffff">Databricks, Snowflake, BigQuery</text>
+
+      <!-- Model Plane -->
+      <rect x="395" y="455" width="295" height="105" rx="10" fill="#5a9bd0"/>
+      <text x="542" y="485" text-anchor="middle" font-size="18" font-weight="700" fill="#ffffff">Model Plane</text>
+      <text x="542" y="504" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">("AI Platforms")</text>
+      <text x="542" y="522" text-anchor="middle" font-size="12.5" fill="#ffffff">Model hosting, fine-tuning, embeddings.</text>
+      <text x="542" y="538" text-anchor="middle" font-size="12" fill="#ffffff">PharmaCo's gateway, Azure AI Foundry,</text>
+      <text x="542" y="553" text-anchor="middle" font-size="12" fill="#ffffff">Bedrock, Vertex AI</text>
+
+      <line x1="250" y1="560" x2="300" y2="590" stroke="#1f2a5c" stroke-width="2.5" marker-end="url(#arr)"/>
+      <line x1="510" y1="560" x2="460" y2="590" stroke="#1f2a5c" stroke-width="2.5" marker-end="url(#arr)"/>
+
+      <!-- Infrastructure -->
+      <rect x="70" y="592" width="620" height="68" rx="10" fill="#1f2a5c"/>
+      <text x="380" y="620" text-anchor="middle" font-size="18" font-weight="700" fill="#ffffff">Infrastructure</text>
+      <text x="380" y="642" text-anchor="middle" font-size="12.5" fill="#c9dbf5">Compute, storage, networking. Azure, AWS, Google Cloud</text>
+
+      <!-- Systems of Record -->
+      <text x="860" y="312" text-anchor="middle" font-size="12" font-style="italic" fill="#4a5680">outside the shared stack</text>
+      <rect x="745" y="325" width="230" height="230" rx="10" fill="#4a5680"/>
+      <text x="860" y="358" text-anchor="middle" font-size="18" font-weight="700" fill="#ffffff">Systems of Record</text>
+      <text x="860" y="392" text-anchor="middle" font-size="12.5" fill="#ffffff">Vendor SaaS, owned</text>
+      <text x="860" y="409" text-anchor="middle" font-size="12.5" fill="#ffffff">division by division</text>
+      <text x="860" y="436" text-anchor="middle" font-size="12.5" fill="#ffffff">Workday, SAP, Salesforce,</text>
+      <text x="860" y="453" text-anchor="middle" font-size="12.5" fill="#ffffff">Veeva, ServiceNow</text>
+      <text x="860" y="482" text-anchor="middle" font-size="12" fill="#ffffff">Runs on its own vendor</text>
+      <text x="860" y="498" text-anchor="middle" font-size="12" fill="#ffffff">infrastructure, not PharmaCo's.</text>
+      <text x="860" y="514" text-anchor="middle" font-size="12" fill="#ffffff">That is part of why it sits</text>
+      <text x="860" y="530" text-anchor="middle" font-size="12" fill="#ffffff">outside the shared stack</text>
+
+      <!-- wraps / ingests arrows -->
+      <line x1="690" y1="360" x2="742" y2="375" stroke="#1f2a5c" stroke-width="2.5" marker-end="url(#arr)"/>
+      <text x="716" y="352" text-anchor="middle" font-size="11" font-style="italic" fill="#4a5680">wraps</text>
+      <line x1="742" y1="405" x2="690" y2="392" stroke="#1f2a5c" stroke-width="2.5" marker-end="url(#arr)"/>
+      <text x="716" y="424" text-anchor="middle" font-size="11" font-style="italic" fill="#4a5680">ingests from</text>
+      <text x="716" y="437" text-anchor="middle" font-size="11" font-style="italic" fill="#4a5680">(batch)</text>
+    </svg>
+
+    <div class="callout">
+      A layer belongs in the shared stack only if <b>two different divisions, or two different agents, could call the exact same instance of it without modification</b>. Certain Systems of Record can fail that test today, which is why they need to be wrapped by Capability Services rather than left as the thing agents call directly.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Layer reference</h2>
+    <p>An explanation of each layer from top to bottom, in the same way a user would encounter the stack: starting from the interface they touch, down through orchestration and shared capabilities, to the infrastructure everything runs on.</p>
+    <div class="layers">
+      <div class="layer"><div class="name c-ux">User Experience</div><div class="body">
+        <div><b>What it does.</b> The conversational and workflow surfaces a human uses to reach everything beneath. This is the head in "headless"; the part that stays division-specific by design.</div>
+        <div><b>Why it matters for agents.</b> This is where a human's request becomes a task and where the agent's output comes back. It starts the job, providing vital data for the agent to decide which layers (models, databases and tools) to use.</div>
+        <div><b>Examples.</b> PharmaCo's internal assistant and Microsoft Copilot, agentic coding tools like Claude, Cursor, and Codex.</div>
+      </div></div>
+      <div class="layer"><div class="name c-ao">Agent Orchestration</div><div class="body">
+        <div><b>What it does.</b> Layer with various agents and tools that call whatever agents need across the Model Plane, Capability Services, and Data Plane, often more than one in a single task. This layer is not one rung in a pipeline; it is a hub with edges into multiple layers at once.</div>
+        <div><b>Why it matters for agents.</b> This is the reasoning and coordination layer itself. It decides what to call, in what order, and stitches the results together, so a task needing both a capability call and a model call is executed as one coherent step.</div>
+        <div><b>Examples.</b> An agent validating a regulatory submission pulls model reasoning, calls a capability API for safety-signal data, and queries the data fabric for manufacturing records.</div>
+      </div></div>
+      <div class="layer"><div class="name c-cs">Capability Services</div><div class="body">
+        <div><b>What it does.</b> The layer this case is actually about: thin, standardized APIs (Application Programming Interfaces; the standard way two pieces of software talk to each other). This layer can expose data, business and validation logic across divisions.</div>
+        <div><b>Why it matters for agents.</b> This is what lets an agent call a business function reliably, without hardcoding vendor-specific logic for each system. Without it, every agent that needs (for example) a "regulatory status" has to know which vendor holds it.</div>
+        <div><b>Examples.</b> Not yet built at scale at PharmaCo; this is the layer Systalyze's pilot is standing up in front of PharmaCo's existing systems of record. More broadly, the internal API layers companies build to extract data from, or connect with, vendor platforms.</div>
+      </div></div>
+      <div class="layer"><div class="name c-mp">Model Plane<br><small style="font-weight:500">("AI Platforms")</small></div><div class="body">
+        <div><b>What it does.</b> Model hosting, fine-tuning, and embeddings, abstracted so the orchestration layer above does not need to care which vendor or model sits underneath.</div>
+        <div><b>Why it matters for agents.</b> This is what the agent reasons and generates with. Abstracting it means a model can be upgraded or swapped without rewriting how orchestration calls it.</div>
+        <div><b>Examples.</b> PharmaCo's own gen-AI gateway alongside Azure AI Foundry, AWS Bedrock, and Google Vertex AI.</div>
+      </div></div>
+      <div class="layer"><div class="name c-dp">Data Plane</div><div class="body">
+        <div><b>What it does.</b> Unified, governed access to data that otherwise used to be locked inside each division's own systems. A peer to the Model Plane, not a step before or after it; both sit directly on Infrastructure.</div>
+        <div><b>Why it matters for agents.</b> This gives an agent one governed place to pull data from across divisions, which is what makes cross-division reasoning possible instead of requiring bespoke access to each division's silo.</div>
+        <div><b>Examples.</b> Databricks, Snowflake, and Google BigQuery give every division, and every agent, a common place to find data rather than a private knowledge silo.</div>
+      </div></div>
+      <div class="layer"><div class="name c-inf">Infrastructure</div><div class="body">
+        <div><b>What it does.</b> Raw compute, storage, and networking. Nothing AI-specific or business-specific happens here; everything above is built on top of it.</div>
+        <div><b>Why it matters for agents.</b> Agents need well-instrumented infrastructure to be reliably provisioned underneath everything else they touch.</div>
+        <div><b>Examples.</b> PharmaCo runs across Microsoft Azure, Amazon Web Services, and Google Cloud.</div>
+      </div></div>
+      <div class="layer"><div class="name c-sor">Systems of Record<br><small style="font-weight:500">(outside the stack)</small></div><div class="body">
+        <div><b>What it is.</b> Vendor SaaS owned division by division: Workday, SAP, Salesforce, Veeva, ServiceNow. Runs on its own vendor infrastructure, not PharmaCo's, which is part of why it sits outside the shared stack.</div>
+        <div><b>How it connects.</b> Capability Services wrap it, and the Data Plane ingests from it (batch). Agents call the wrapper, not the vendor system directly.</div>
+      </div></div>
+    </div>
+    <p class="note" style="margin-top:14px">Ready? Move on to the <a href="#" data-goto="exercise">Layer sort exercise</a>.</p>
+  </div>
+</section>
+
+<!-- ============================ EXERCISE ============================ -->
+<section role="tabpanel" id="panel-exercise" aria-labelledby="tab-exercise" hidden>
+  <div class="card">
+    <h2>Layer sort <span class="pill">≈ 3 minutes</span></h2>
+    <p>Drag each item on the left into the layer it belongs to. <b>One item does not belong to any layer at all</b>; if you think that is the case, drop it in the cross-cutting concern zone instead. When every item is placed, press <b>Check answers</b>.</p>
+    <p class="note">No mouse? Click or tap an item to select it, then click the zone you want to drop it in.</p>
+
+    <div class="ex-top">
+      <div class="status" id="status" aria-live="polite">0 of 7 placed</div>
+      <div class="btns">
+        <button class="btn ghost" id="resetBtn" type="button">Reset</button>
+        <button class="btn primary" id="checkBtn" type="button" disabled>Check answers</button>
+      </div>
+    </div>
+
+    <div class="ex-grid">
+      <div class="pool card" style="margin:0">
+        <h3>Items to sort</h3>
+        <div class="items" id="pool" data-zone="pool" role="list" aria-label="Unsorted items"></div>
+      </div>
+
+      <div class="zones" id="zones"></div>
+    </div>
+
+    <div class="result" id="result" role="status"></div>
+  </div>
+</section>
+
+</main>
+
+<footer>Built from the pre-class handout "Rise of the Horizontal Architecture in the Agentic Era" (August 2026).</footer>
+
+<script>
+(function(){
+  // ---------- Tabs ----------
+  const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+  const panels = Array.from(document.querySelectorAll('[role="tabpanel"]'));
+  function showTab(id){
+    tabs.forEach(t=>{const on=t.id===id; t.setAttribute('aria-selected',on); t.tabIndex=on?0:-1;});
+    panels.forEach(p=>{p.hidden = p.getAttribute('aria-labelledby')!==id;});
+    window.scrollTo({top:0,behavior:'smooth'});
+    try{ history.replaceState(null,'','#'+id.replace('tab-','')); }catch(e){}
+  }
+  tabs.forEach((t,i)=>{
+    t.addEventListener('click',()=>showTab(t.id));
+    t.addEventListener('keydown',e=>{
+      if(e.key==='ArrowRight'||e.key==='ArrowLeft'){
+        const n=(i+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length; tabs[n].focus(); showTab(tabs[n].id);
+      }
+    });
+  });
+  document.querySelectorAll('[data-goto]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault(); showTab('tab-'+a.dataset.goto);}));
+  if(location.hash==='#exercise') showTab('tab-exercise');
+
+  // ---------- Exercise data ----------
+  const ZONES = [
+    {id:'ux',  name:'User Experience', cls:'c-ux', hint:'the surface a human touches'},
+    {id:'ao',  name:'Agent Orchestration', cls:'c-ao', hint:'decides what to call, in what order'},
+    {id:'cs',  name:'Capability Services', cls:'c-cs', hint:'thin, standardized APIs'},
+    {id:'mp',  name:'Model Plane', cls:'c-mp', hint:'"AI Platforms": hosting, fine-tuning, embeddings'},
+    {id:'dp',  name:'Data Plane', cls:'c-dp', hint:'unified, governed data access'},
+    {id:'inf', name:'Infrastructure', cls:'c-inf', hint:'compute, storage, networking'},
+    {id:'xc',  name:'Not a layer', cls:'c-xc', hint:'cross-cutting: Security, Identity & Governance'}
+  ];
+  // One item per layer, plus the cross-cutting trap. (Systems of Record items were dropped to keep the sort short.)
+  const ITEMS = [
+    {id:1, text:'Snowflake', answer:'dp',
+     why:'Snowflake is a governed data platform that gives every division and agent a common place to find data.'},
+    {id:2, text:'A regulatory reviewer asking a chatbot to summarize a submission', answer:'ux',
+     why:'This is the surface a human touches; the request becomes a task here and the output comes back here.'},
+    {id:3, text:'AWS Bedrock', answer:'mp',
+     why:'Bedrock hosts models for orchestration to call, abstracted so the vendor underneath can be swapped.'},
+    {id:4, text:'An agent that decides to pull safety-signal data before drafting a submission summary', answer:'ao',
+     why:'Deciding what to call, in what order, and stitching results together is the orchestration layer\'s job.'},
+    {id:5, text:'The Microsoft Azure data center a PharmaCo application ultimately runs on', answer:'inf',
+     why:'Raw compute, storage and networking; nothing AI- or business-specific happens here.'},
+    {id:6, text:'An internal API that returns "regulatory status" without the caller knowing which vendor tool holds it', answer:'cs',
+     why:'A thin, standardized API that hides which vendor holds the data is exactly what Capability Services are.'},
+    {id:7, text:'A data residency requirement for EU clinical trial data', answer:'xc',
+     why:'The trap. Data residency is not any of the six layers; it is a cross-cutting constraint from Security, Identity & Governance that applies to all of them.'}
+  ];
+
+  const pool = document.getElementById('pool');
+  const zonesEl = document.getElementById('zones');
+  const statusEl = document.getElementById('status');
+  const resultEl = document.getElementById('result');
+  const checkBtn = document.getElementById('checkBtn');
+  let placement = {};     // itemId -> zoneId
+  let selected = null;    // itemId chosen via click/keyboard
+  let checked = false;
+
+  // Build zones
+  ZONES.forEach(z=>{
+    const el=document.createElement('div');
+    el.className='zone'; el.dataset.zone=z.id; el.tabIndex=0;
+    el.setAttribute('role','group'); el.setAttribute('aria-label',z.name+' drop zone');
+    el.innerHTML=`<div class="zname ${z.cls}">${z.name}<small>${z.hint}</small></div><div class="drop" data-zone="${z.id}"></div>`;
+    zonesEl.appendChild(el);
+  });
+
+  function shuffle(arr){ for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
+
+  function makeItem(item){
+    const el=document.createElement('div');
+    el.className='item'; el.draggable=true; el.tabIndex=0; el.dataset.id=item.id;
+    el.setAttribute('role','listitem'); el.setAttribute('aria-grabbed','false');
+    el.innerHTML=`<span class="txt">${item.text}</span><div class="why"></div>`;
+    el.addEventListener('dragstart',e=>{ if(checked) {e.preventDefault();return;} e.dataTransfer.setData('text/plain',String(item.id)); e.dataTransfer.effectAllowed='move'; el.classList.add('dragging'); });
+    el.addEventListener('dragend',()=>el.classList.remove('dragging'));
+    el.addEventListener('click',e=>{
+      e.stopPropagation(); if(checked) return;
+      // If another item is selected and this one already sits in a zone, drop the selected item into that zone.
+      if(selected!==null && selected!==item.id && placement[item.id]){ moveItem(selected, placement[item.id]); return; }
+      toggleSelect(item.id);
+    });
+    el.addEventListener('keydown',e=>{ if(checked) return; if(e.key==='Enter'||e.key===' '){e.preventDefault(); toggleSelect(item.id);} });
+    return el;
+  }
+
+  function toggleSelect(id){
+    selected = (selected===id)? null : id;
+    document.querySelectorAll('.item').forEach(i=>{const on=Number(i.dataset.id)===selected; i.classList.toggle('selected',on); i.setAttribute('aria-grabbed',on);});
+    document.querySelectorAll('.zone, .pool').forEach(z=>z.classList.toggle('target-able', selected!==null));
+  }
+
+  function moveItem(id, zoneId){
+    const el=document.querySelector(`.item[data-id="${id}"]`); if(!el) return;
+    const target = zoneId==='pool' ? pool : document.querySelector(`.drop[data-zone="${zoneId}"]`);
+    target.appendChild(el);
+    if(zoneId==='pool') delete placement[id]; else placement[id]=zoneId;
+    if(selected!==null) toggleSelect(selected);
+    updateStatus();
+  }
+
+  function updateStatus(){
+    const n=Object.keys(placement).length;
+    statusEl.textContent = checked ? statusEl.textContent : `${n} of ${ITEMS.length} placed`;
+    checkBtn.disabled = checked || n!==ITEMS.length;
+    pool.querySelector('.empty')?.remove();
+    if(!pool.querySelector('.item')){ const e=document.createElement('div'); e.className='empty'; e.textContent='All items placed. Check your answers!'; pool.appendChild(e); }
+  }
+
+  // Drop handling (HTML5 DnD + click-to-place)
+  function wireDropTarget(el, zoneId){
+    el.addEventListener('dragover',e=>{ if(checked) return; e.preventDefault(); e.dataTransfer.dropEffect='move'; el.classList.add('over'); });
+    el.addEventListener('dragleave',()=>el.classList.remove('over'));
+    el.addEventListener('drop',e=>{ e.preventDefault(); el.classList.remove('over'); if(checked) return; const id=Number(e.dataTransfer.getData('text/plain')); if(id) moveItem(id, zoneId); });
+    el.addEventListener('click',()=>{ if(selected!==null && !checked) moveItem(selected, zoneId); });
+    el.addEventListener('keydown',e=>{ if((e.key==='Enter'||e.key===' ') && selected!==null && !checked){ e.preventDefault(); moveItem(selected, zoneId);} });
+  }
+  document.querySelectorAll('.zone').forEach(z=>wireDropTarget(z, z.dataset.zone));
+  wireDropTarget(document.querySelector('.pool'), 'pool');
+
+  function build(order){
+    placement={}; selected=null; checked=false;
+    resultEl.className='result'; resultEl.textContent='';
+    pool.innerHTML=''; document.querySelectorAll('.drop').forEach(d=>d.innerHTML='');
+    order.forEach(it=>pool.appendChild(makeItem(it)));
+    updateStatus();
+  }
+
+  document.getElementById('resetBtn').addEventListener('click',()=>build(shuffle(ITEMS.slice())));
+
+  checkBtn.addEventListener('click',()=>{
+    let score=0;
+    ITEMS.forEach(it=>{
+      const el=document.querySelector(`.item[data-id="${it.id}"]`);
+      const ok = placement[it.id]===it.answer; if(ok) score++;
+      el.classList.add(ok?'correct':'wrong'); el.draggable=false;
+      const zname = ZONES.find(z=>z.id===it.answer).name;
+      el.querySelector('.why').innerHTML = (ok ? '<b>Correct.</b> ' : `<b>Belongs in ${zname}.</b> `) + it.why;
+    });
+    checked=true; checkBtn.disabled=true;
+    document.querySelectorAll('.zone, .pool').forEach(z=>z.classList.remove('target-able'));
+    statusEl.textContent = `Score: ${score} / ${ITEMS.length}`;
+    resultEl.className = 'result show ' + (score===ITEMS.length?'good':'partial');
+    resultEl.textContent = score===ITEMS.length
+      ? 'All 7 correct. You spotted that EU data residency is a cross-cutting governance constraint, not a layer. Bring your reasoning to class.'
+      : `${score} of ${ITEMS.length} correct. Read the notes under each item, then press Reset to try again. Pay special attention to anything you placed inside a layer that is really a cross-cutting concern.`;
+    resultEl.scrollIntoView({behavior:'smooth',block:'nearest'});
+  });
+
+  build(shuffle(ITEMS.slice()));
+})();
+</script>
+</body>
+</html>
