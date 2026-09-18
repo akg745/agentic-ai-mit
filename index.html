@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -120,7 +121,7 @@
 <header>
   <div class="wrap">
     <h1>Rise of the Horizontal Architecture in the Agentic Era</h1>
-    <p class="sub">A layer-by-layer guide to the technical architecture behind replatforming — pre-class reading and layer sort exercise</p>
+    <p class="sub">A layer-by-layer guide to the technical architecture behind rearchitecting — pre-class reading and layer sort exercise</p>
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button role="tab" id="tab-theory" aria-selected="true" aria-controls="panel-theory">1 · Introduction</button>
       <button role="tab" id="tab-exercise" aria-selected="false" aria-controls="panel-exercise" tabindex="-1">2 · Exercise: Layer sort</button>
@@ -135,13 +136,13 @@
 
   <div class="card">
     <h2>Introduction</h2>
-    <p>Organizations are shifting from <b>vertical ownership</b>, where each business division builds and owns its own closed technology stack, to a <b>horizontal architecture</b>, where a shared set of layers sits underneath every division and is accessible to any application, human, or AI agent that needs it. <b>Replatforming</b> is the process of moving a legacy system from the old vertical world to the new horizontal one.</p>
+    <p>Organizations are shifting from <b>vertical ownership</b>, where each business division builds and owns its own closed technology stack, to a <b>horizontal architecture</b>, where a shared set of layers sits underneath every division and is accessible to any application, human, or AI agent that needs it. <b>Rearchitecting</b> is the process of moving a legacy system from the old vertical world to the new horizontal one.</p>
 
-    <h3>Why replatform?</h3>
+    <h3>Why rearchitect?</h3>
     <p>Vertical architecture is not an entirely wrong choice, it is just expensive to keep and harder to drive ROI from in an agentic world. When each division builds its own closed stack, its own interface, its own integration logic and its own systems and source of data, that duplication stays invisible as long as nothing needs to cross divisional lines. However, this issue stops being invisible the moment an AI agent has to reason across more than one division's data or logic in a single task, or two divisions independently build the same integration against the same vendor system.</p>
-    <p>Replatforming does not throw away what each division already has; it takes the pieces that keep getting rebuilt behind every division's closed stack like orchestration logic, capability APIs, model access, data access and rebuilds each one once as a shared layer that any division or agent can call, instead of many times behind many closed doors. This enhanced accessibility makes agentic tools more efficient and improves their ROI and effectiveness across the organization.</p>
+    <p>Rearchitecting does not throw away what each division already has; it takes the pieces that keep getting rebuilt behind every division's closed stack like orchestration logic, capability APIs, model access, data access and rebuilds each one once as a shared layer that any division or agent can call, instead of many times behind many closed doors. This enhanced accessibility makes agentic tools more efficient and improves their ROI and effectiveness across the organization.</p>
     <div class="callout">
-      <b>A concrete version of this in pharma.</b> Before replatforming, a Commercial team might maintain its own custom integration to pull product and safety data for field sales dashboards (e.g., knowing a product's current safety profile before a rep discusses it), while Regulatory Affairs maintains an entirely separate, custom-built pipeline to pull much of the same underlying data for tracking drug approval submissions to regulatory authorities. Both integrations talk to overlapping databases and systems but neither can be reused by the other, because each was built as part of a closed, division-specific stack rather than as a shared layer. That is what a vertical architecture looks like in practice, and it is exactly the duplication that replatforming helps to remove.
+      <b>A concrete version of this in pharma.</b> Before rearchitecting, a Commercial team might maintain its own custom integration to pull product and safety data for field sales dashboards (e.g., knowing a product's current safety profile before a rep discusses it), while Regulatory Affairs maintains an entirely separate, custom-built pipeline to pull much of the same underlying data for tracking drug approval submissions to regulatory authorities. Both integrations talk to overlapping databases and systems but neither can be reused by the other, because each was built as part of a closed, division-specific stack rather than as a shared layer. That is what a vertical architecture looks like in practice, and it is exactly the duplication that rearchitecting helps to remove.
     </div>
   </div>
 
